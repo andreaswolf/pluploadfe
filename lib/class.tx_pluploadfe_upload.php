@@ -197,6 +197,12 @@ class tx_pluploadfe_upload {
 	private $uploadPath = '';
 
 	/**
+	 * @var \TYPO3\CMS\Core\Resource\Folder
+	 */
+	protected $uploadFolder;
+
+
+	/**
 	 * Handles incoming upload requests
 	 *
 	 * @return    void
@@ -228,7 +234,7 @@ class tx_pluploadfe_upload {
 			$this->getUserDirectory(),
 			$this->config['obscure_dir']
 		);
-		$this->makeSureUploadTargetExists();
+		//$this->makeSureUploadTargetExists();
 
 		$this->uploadFile();
 	}
@@ -312,9 +318,9 @@ class tx_pluploadfe_upload {
 			),
 			'id' => ''
 		);
-		\TYPO3\CMS\Core\Utility\HttpUtility::setResponseCode($statusCode);
 
-		die(json_encode($output));
+		echo json_encode($output);
+		\TYPO3\CMS\Core\Utility\HttpUtility::setResponseCodeAndExit($statusCode);
 	}
 
 	/**
@@ -371,7 +377,7 @@ class tx_pluploadfe_upload {
 	protected function processConfig() {
 		// Make sure FAL references work
 		$resourceFactory = \TYPO3\CMS\Core\Resource\ResourceFactory::getInstance();
-		$this->config['upload_path'] = $resourceFactory->retrieveFileOrFolderObject($this->config['upload_path'])->getPublicUrl();
+		$this->uploadFolder = $resourceFactory->retrieveFileOrFolderObject($this->config['upload_path']);
 
 		// Make sure no user based path is added when there is no user available
 		if (!$this->config['feuser_required']) {
@@ -387,13 +393,7 @@ class tx_pluploadfe_upload {
 	 * @return bool
 	 */
 	protected function checkPath($path) {
-		$allowedAndValid = (
-			strlen($path) > 0 &&
-			GeneralUtility::isAllowedAbsPath(PATH_site . $path) &&
-			GeneralUtility::validPathStr($path)
-		);
-
-		return $allowedAndValid;
+		return $this->uploadFolder instanceof \TYPO3\CMS\Core\Resource\Folder;
 	}
 
 	/**
@@ -540,8 +540,11 @@ class tx_pluploadfe_upload {
 		// Check if file has been uploaded
 		if (!$chunks || $chunk == $chunks - 1) {
 			// Strip the temp .part suffix off
-			rename($filePath . '.part', $filePath);
-			$this->processFile($filePath);
+			$file = $this->uploadFolder->addFile($filePath . '.part', $this->getFileName(), 'changeName');
+			@unlink($filePath . '.part');
+
+			// TODO make this available again
+			//$this->processFile($file->getIdentifier());
 		}
 
 		// save chunked upload dir
@@ -552,8 +555,8 @@ class tx_pluploadfe_upload {
 		// Return JSON-RPC response if upload process is successfully finished
 		die(json_encode(array(
 			"jsonrpc" => "2.0",
-			"result" => null,
-			"id" => $filePath
+			"result" => $file->getCombinedIdentifier(),
+			"id" => $file->getUid()
 		)));
 	}
 
