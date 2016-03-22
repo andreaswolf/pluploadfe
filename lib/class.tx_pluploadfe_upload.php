@@ -550,7 +550,11 @@ class tx_pluploadfe_upload {
 		}
 
 		// Return JSON-RPC response if upload process is successfully finished
-		die('{"jsonrpc" : "2.0", "result" : null, "id" : "id"}');
+		die(json_encode(array(
+			"jsonrpc" => "2.0",
+			"result" => null,
+			"id" => $filePath
+		)));
 	}
 
 	/**
