@@ -218,7 +218,7 @@ class tx_pluploadfe_upload {
 		// check for valid FE user
 		if ($this->config['feuser_required']) {
 			if ($this->getFeUser()->user['username'] == '') {
-				$this->sendErrorResponse('TYPO3 user session expired.', 100, 403);
+				$this->sendErrorResponse('TYPO3 user session expired.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_403);
 			}
 		}
 
@@ -308,8 +308,9 @@ class tx_pluploadfe_upload {
 	 *
 	 * @param $message
 	 * @param int $code
+	 * @param string $status The HTTP status header
 	 */
-	protected function sendErrorResponse($message, $code = 100, $statusCode = 500) {
+	protected function sendErrorResponse($message, $code = 100, $status = \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_500) {
 		$output = array(
 			'jsonrpc' => '2.0',
 			'error' => array(
@@ -320,7 +321,7 @@ class tx_pluploadfe_upload {
 		);
 
 		echo json_encode($output);
-		\TYPO3\CMS\Core\Utility\HttpUtility::setResponseCodeAndExit($statusCode);
+		\TYPO3\CMS\Core\Utility\HttpUtility::setResponseCodeAndExit($status);
 	}
 
 	/**
@@ -330,15 +331,15 @@ class tx_pluploadfe_upload {
 	 */
 	protected function checkUploadConfig() {
 		if (!count($this->config)) {
-			$this->sendErrorResponse('Configuration record not found or invalid.', 100, 500);
+			$this->sendErrorResponse('Configuration record not found or invalid.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_500);
 		}
 
 		if (!strlen($this->config['extensions'])) {
-			$this->sendErrorResponse('Missing allowed file extension configuration.', 100, 500);
+			$this->sendErrorResponse('Missing allowed file extension configuration.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_500);
 		}
 
 		if (!$this->checkPath($this->config['upload_path'])) {
-			$this->sendErrorResponse('Upload directory not valid.', 100, 500);
+			$this->sendErrorResponse('Upload directory not valid.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_500);
 		}
 	}
 
@@ -352,7 +353,7 @@ class tx_pluploadfe_upload {
 
 		// config id given?
 		if (!$configUid) {
-			$this->sendErrorResponse('No config record ID given.', 100, 400);
+			$this->sendErrorResponse('No config record ID given.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_400);
 		}
 
 		$select = 'upload_path, extensions, feuser_required, feuser_field, save_session, obscure_dir, check_mime';
@@ -411,12 +412,12 @@ class tx_pluploadfe_upload {
 
 		// check if file extension is allowed (configuration record)
 		if (!in_array($this->fileExtension, $extensions)) {
-			$this->sendErrorResponse('File extension is not allowed.', 100, 400);
+			$this->sendErrorResponse('File extension is not allowed.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_400);
 		}
 
 		// check if file extension is allowed on this TYPO3 installation
 		if (!GeneralUtility::verifyFilenameAgainstDenyPattern($fileName)) {
-			$this->sendErrorResponse('File extension is not allowed on this TYPO3 installation.', 100, 400);
+			$this->sendErrorResponse('File extension is not allowed on this TYPO3 installation.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_400);
 		}
 	}
 
@@ -487,7 +488,7 @@ class tx_pluploadfe_upload {
 		try {
 			GeneralUtility::mkdir_deep(PATH_site, $this->uploadPath);
 		} catch (\Exception $e) {
-			$this->sendErrorResponse('Failed to create upload directory.', 100, 500);
+			$this->sendErrorResponse('Failed to create upload directory.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_500);
 		}
 	}
 
@@ -572,7 +573,7 @@ class tx_pluploadfe_upload {
 			// if mime type is not allowed: remove file
 			if (!$this->checkMimeType($this->fileExtension, $filePath)) {
 				@unlink($filePath);
-				$this->sendErrorResponse('File mime type is not allowed.', 100, 400);
+				$this->sendErrorResponse('File mime type is not allowed.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_400);
 			}
 		}
 
