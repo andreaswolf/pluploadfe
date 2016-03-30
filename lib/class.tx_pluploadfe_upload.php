@@ -234,7 +234,7 @@ class tx_pluploadfe_upload {
 			$this->getUserDirectory(),
 			$this->config['obscure_dir']
 		);
-		//$this->makeSureUploadTargetExists();
+		$this->makeSureUploadTargetExists();
 
 		$this->uploadFile();
 	}
@@ -438,40 +438,46 @@ class tx_pluploadfe_upload {
 		return preg_replace('/[^\w\._]+/', '_', $filename);
 	}
 
+	protected function getUploadTempfile() {
+		$uploadPath = $this->getSessionData('upload_path');
+		if (!$uploadPath || !file_exists($uploadPath)) {
+			// TODO if plupload can upload multiple files at the same time, this will fail. Check this.
+			$uploadPath = GeneralUtility::tempnam('plupload');
+			$this->saveDataInSession($uploadPath, 'upload_path');
+		}
+		return $uploadPath;
+	}
+
 	/**
 	 * Checks and creates the upload directory
 	 *
-	 * @param string $path
+	 * @param \TYPO3\CMS\Core\Resource\Folder $folder
 	 * @param string $subDirectory
 	 * @param bool $obscure
 	 *
-	 * @return string
+	 * @return \TYPO3\CMS\Core\Resource\Folder
 	 */
-	protected function getUploadDir($path, $subDirectory = '', $obscure = FALSE) {
-		if ($this->chunkedUpload) {
-			$chunkedPath = $this->getSessionData('chunk_path');
-			if ($chunkedPath && file_exists($chunkedPath . DIRECTORY_SEPARATOR . $this->getFileName() . '.part')) {
-				return $chunkedPath;
-			} else {
-				// reset session
-				$this->saveDataInSession(NULL, 'chunk_path');
-			}
-		}
-
-		// make sure we have no trailing slash
-		$path = GeneralUtility::dirname($path);
-
+	protected function getUploadDir($folder, $subDirectory = '', $obscure = FALSE) {
 		// subdirectory
 		if ($subDirectory) {
-			$path = $path . DIRECTORY_SEPARATOR . $subDirectory;
+			if (!$folder->hasFolder($subDirectory)) {
+				$folder = $folder->createFolder($subDirectory);
+			} else {
+				$folder = $folder->getSubfolder($subDirectory);
+			}
 		}
 
 		// obscure directory
 		if ($obscure) {
-			$path = $path . DIRECTORY_SEPARATOR . $this->getRandomDirName(20);
+			$randomFolderName = $this->getRandomDirName(20);
+			if (!$folder->hasFolder($randomFolderName)) {
+				$folder = $folder->createFolder($randomFolderName);
+			} else {
+				$folder = $folder->getSubfolder($randomFolderName);
+			}
 		}
 
-		return $path;
+		return $folder;
 	}
 
 	/**
@@ -508,11 +514,11 @@ class tx_pluploadfe_upload {
 		$chunk = isset($_REQUEST['chunk']) ? intval($_REQUEST['chunk']) : 0;
 		$chunks = isset($_REQUEST['chunks']) ? intval($_REQUEST['chunks']) : 0;
 
-		// Clean the fileName for security reasons
-		$filePath = $this->uploadPath . DIRECTORY_SEPARATOR . $this->getFileName();
+		// Use a temporary file path during upload, then add the file to FAL
+		$uploadFilePath = $this->getUploadTempfile();
 
 		// Open temp file
-		if (!$out = @fopen("{$filePath}.part", $chunks ? "ab" : "wb")) {
+		if (!$out = @fopen($uploadFilePath, $chunks ? "ab" : "wb")) {
 			$this->sendErrorResponse('Failed to open output stream.', 102);
 		}
 
@@ -540,18 +546,18 @@ class tx_pluploadfe_upload {
 
 		// Check if file has been uploaded
 		if (!$chunks || $chunk == $chunks - 1) {
-			// Strip the temp .part suffix off
-			$file = $this->uploadFolder->addFile($filePath . '.part', $this->getFileName(), 'changeName');
-			@unlink($filePath . '.part');
+			// Move the file to its destination
+			$uploadFolder = $this->getUploadDir($this->uploadFolder);
+			$file = $this->uploadFolder->addFile($uploadFilePath, $this->getFileName(), 'changeName');
+			// not required anymore: @unlink($uploadFilePath);
 
 			// TODO make this available again
 			//$this->processFile($file->getIdentifier());
+
+			// remove temporary upload path from session
+			$this->saveDataInSession(null, 'upload_path');
 		}
 
-		// save chunked upload dir
-		if ($this->chunkedUpload) {
-			$this->saveDataInSession($this->uploadPath, 'chunk_path');
-		}
 
 		// Return JSON-RPC response if upload process is successfully finished
 		die(json_encode(array(
