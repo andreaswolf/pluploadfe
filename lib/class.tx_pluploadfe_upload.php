@@ -563,6 +563,7 @@ class tx_pluploadfe_upload {
 		die(json_encode(array(
 			"jsonrpc" => "2.0",
 			"result" => $file->getCombinedIdentifier(),
+			"path" => $file->getPublicUrl(),
 			"id" => $file->getUid()
 		)));
 	}
