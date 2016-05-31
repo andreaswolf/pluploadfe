@@ -230,11 +230,10 @@ class tx_pluploadfe_upload {
 
 		// get upload path
 		$this->uploadPath = $this->getUploadDir(
-			$this->config['upload_path'],
+			$this->uploadFolder,
 			$this->getUserDirectory(),
 			$this->config['obscure_dir']
 		);
-		$this->makeSureUploadTargetExists();
 
 		$this->uploadFile();
 	}
@@ -478,24 +477,6 @@ class tx_pluploadfe_upload {
 		}
 
 		return $folder;
-	}
-
-	/**
-	 * Checks if upload path exists
-	 *
-	 * @return void
-	 */
-	protected function makeSureUploadTargetExists() {
-		if (file_exists($this->uploadPath)) {
-			return;
-		}
-
-		// create target dir
-		try {
-			GeneralUtility::mkdir_deep(PATH_site, $this->uploadPath);
-		} catch (\Exception $e) {
-			$this->sendErrorResponse('Failed to create upload directory.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_500);
-		}
 	}
 
 	/**
