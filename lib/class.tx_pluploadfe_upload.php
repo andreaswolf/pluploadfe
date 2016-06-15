@@ -410,7 +410,7 @@ class tx_pluploadfe_upload {
 		$extensions = GeneralUtility::trimExplode(',', $this->config['extensions'], TRUE);
 
 		// check if file extension is allowed (configuration record)
-		if (!in_array($this->fileExtension, $extensions)) {
+		if ($extensions[0] !== '*' && !in_array($this->fileExtension, $extensions)) {
 			$this->sendErrorResponse('File extension is not allowed.', 100, \TYPO3\CMS\Core\Utility\HttpUtility::HTTP_STATUS_400);
 		}
 
